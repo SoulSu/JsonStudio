@@ -1,6 +1,8 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
 
+  const websiteUrl = 'https://json.zoxii.xyz/';
+  const websiteLabel = 'json.zoxii.xyz';
   const githubUrl = 'https://github.com/SoulSu/JsonStudio';
   const githubLabel = 'SoulSu/JsonStudio';
   const upstreamUrl = 'https://github.com/sundegan/JsonStudio';
@@ -62,6 +64,13 @@
           <span>{$t('about.version')}</span>
           <strong>{version || $t('settings.versionUnknown')}</strong>
         </div>
+        <button class="about-link" type="button" onclick={() => openUrl(websiteUrl)}>
+          <span>Website</span>
+          <strong title={websiteUrl}>{websiteLabel}</strong>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 17 17 7M9 7h8v8" />
+          </svg>
+        </button>
         <button class="about-link" type="button" onclick={() => openUrl(githubUrl)}>
           <span>{$t('about.github')}</span>
           <strong title={githubUrl}>{githubLabel}</strong>

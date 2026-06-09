@@ -8,7 +8,12 @@
 
 Format, diff, convert, validate, and extract JSON out of mixed log text — all in the browser, **no backend required**.
 
+**Live demo: [json.zoxii.xyz](https://json.zoxii.xyz/)**
+
 <p align="center">
+  <a href="https://json.zoxii.xyz/">
+    <img src="https://img.shields.io/badge/live%20demo-json.zoxii.xyz-10b981?style=flat-square&logo=cloudflare&logoColor=white" alt="Live demo">
+  </a>
   <img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/SvelteKit-static-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="SvelteKit static">
   <img src="https://img.shields.io/badge/Monaco-Editor-0078D4?style=flat-square&logo=visualstudiocode&logoColor=white" alt="Monaco">
@@ -32,7 +37,9 @@ Good for:
 
 ## Try it
 
-Deploy your own Cloudflare Pages / Vercel and visit your domain. This repository does not host a public instance.
+Public instance: **<https://json.zoxii.xyz/>** (running on Cloudflare; every operation happens in your browser, nothing is uploaded).
+
+You can also fork this repo and deploy your own copy to Cloudflare Pages / Vercel / GitHub Pages.
 
 ## What it does
 

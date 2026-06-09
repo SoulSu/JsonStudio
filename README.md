@@ -8,7 +8,12 @@
 
 格式化、对比、转换、校验，从混合日志里挑出 JSON —— 全部在浏览器里完成，**无需后端**。
 
+**在线试用：[json.zoxii.xyz](https://json.zoxii.xyz/)**
+
 <p align="center">
+  <a href="https://json.zoxii.xyz/">
+    <img src="https://img.shields.io/badge/在线试用-json.zoxii.xyz-10b981?style=flat-square&logo=cloudflare&logoColor=white" alt="Live demo">
+  </a>
   <img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/SvelteKit-static-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="SvelteKit static">
   <img src="https://img.shields.io/badge/Monaco-Editor-0078D4?style=flat-square&logo=visualstudiocode&logoColor=white" alt="Monaco">
@@ -32,7 +37,9 @@
 
 ## 在线试用
 
-部署后访问你自己的 Cloudflare Pages / Vercel 域名即可。本仓库不托管公共实例。
+公共实例：**<https://json.zoxii.xyz/>**（部署在 Cloudflare 上，所有数据仅在你的浏览器里处理，不会上传任何服务器）。
+
+你也可以 fork 本仓库部署到自己的 Cloudflare Pages / Vercel / GitHub Pages 域名。
 
 ## 主要功能
 
