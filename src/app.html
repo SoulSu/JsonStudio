@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Fast, modern, and efficient JSON desktop tool" />
+    <meta name="description" content="Fast, modern, and efficient JSON workbench" />
     <title>Json Studio</title>
     <style>
       html, body {
@@ -18,10 +18,115 @@
       html.light, html.light body {
         background-color: #f8f9fa;
       }
+
+      /* ── Initial loading overlay ───────────────────────────────────
+         Visible immediately after the HTML lands. Removed by Svelte's
+         onMount in +layout.svelte once the app is interactive. */
+      #app-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background-color: #0f0f0f;
+        color: #e5e7eb;
+        transition: opacity 0.32s ease;
+      }
+      html.light #app-loader {
+        background-color: #f8f9fa;
+        color: #111827;
+      }
+      #app-loader.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-loader .loader-logo {
+        width: 88px;
+        height: 88px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        animation: app-loader-pulse 1.6s ease-in-out infinite;
+      }
+      html.light #app-loader .loader-logo {
+        box-shadow: 0 18px 40px rgba(16, 185, 129, 0.18);
+      }
+      #app-loader .loader-logo svg {
+        width: 50%;
+        height: 50%;
+        stroke: #fff;
+        fill: none;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #app-loader .loader-title {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      #app-loader .loader-spinner {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2.5px solid rgba(148, 163, 184, 0.25);
+        border-top-color: #10b981;
+        animation: app-loader-spin 0.9s linear infinite;
+      }
+      #app-loader .loader-hint {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      @keyframes app-loader-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes app-loader-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50%      { transform: scale(0.96); opacity: 0.85; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-loader .loader-logo,
+        #app-loader .loader-spinner {
+          animation: none;
+        }
+      }
     </style>
+    <script>
+      // Apply the persisted theme before the loader paints so the splash
+      // matches the user's last choice (avoids dark→light flash).
+      (function () {
+        try {
+          var saved = localStorage.getItem('app-settings');
+          var isDark = saved ? !!JSON.parse(saved).isDarkMode : false;
+          if (!isDark) document.documentElement.classList.add('light');
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (_) {}
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
+    <div id="app-loader" aria-hidden="true" role="status">
+      <div class="loader-logo">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 4H6a2 2 0 0 0-2 2v4c0 1.1-.9 2-2 2 1.1 0 2 .9 2 2v4a2 2 0 0 0 2 2h2" />
+          <path d="M16 4h2a2 2 0 0 1 2 2v4c0 1.1.9 2 2 2-1.1 0-2 .9-2 2v4a2 2 0 0 1-2 2h-2" />
+        </svg>
+      </div>
+      <div class="loader-title">Json Studio</div>
+      <div class="loader-spinner"></div>
+      <div class="loader-hint">Loading editor…</div>
+    </div>
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>
