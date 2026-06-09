@@ -1,6 +1,5 @@
 import { writable, derived } from 'svelte/store';
 import type { JsonStats } from '$lib/services/json';
-import { fileWatcherService } from '$lib/services/fileWatcher';
 import { FIRST_UNTITLED_NAME, getNextUntitledName } from './untitledTabs.js';
 import { openFileInTabs } from './tabOpen.js';
 import { moveTabToInsertionIndex } from './tabOrder.js';

@@ -2,7 +2,6 @@
   // Monaco Editor Svelte wrapper component
   import { onMount, onDestroy } from 'svelte';
   import type * as Monaco from 'monaco-editor';
-  import { openUrl } from '@tauri-apps/plugin-opener';
   import { initMonaco } from '$lib/services/monaco';
   import { registerMonacoThemes, type EditorTheme } from '$lib/config/monacoThemes';
   import { getJsonStringUrlAtColumn } from '$lib/services/editorLinks.js';
@@ -141,13 +140,8 @@
     '.find-widget .codicon-find-selection',
   ].join(', ');
 
-  async function openEditorUrl(url: string) {
-    try {
-      await openUrl(url);
-    } catch (error) {
-      console.error('Failed to open editor link:', error);
-      window.open(url, '_blank');
-    }
+  function openEditorUrl(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
   
   // Watch value changes

@@ -1,0 +1,36 @@
+JsonStudio Web
+Copyright 2026 SoulSu and contributors
+
+This product is derived from JsonStudio (https://github.com/sundegan/JsonStudio),
+originally created by sundegan.
+Copyright 2025 sundegan
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+------------------------------------------------------------------------
+
+Summary of modifications in this fork:
+
+- Removed the Tauri 2.0 desktop shell (src-tauri/, Cargo, Rust commands,
+  bundling targets, auto-updater).
+- Reimplemented all Rust-backed functionality in the browser:
+    * JSON parse/format/minify/validate/stats/escape (JSON + JSON5 +
+      Infinity/NaN sanitization fallback).
+    * YAML / XML / TOML / CSV conversion via js-yaml, fast-xml-parser,
+      @iarna/toml, and papaparse (lazy-loaded).
+    * Code generation via quicktype-core; protobuf / thrift dropped.
+    * Image export via html-to-image + browser download.
+- Removed desktop-only features: file system access, folder watching,
+  native menus, global shortcuts, always-on-top, auto-update.
+- Added Cloudflare Pages-ready static build (SvelteKit adapter-static +
+  static/_redirects).

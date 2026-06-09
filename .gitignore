@@ -1,102 +1,60 @@
 # ===========================
-# Rust / Cargo
-# ===========================
-# 编译生成的文件和可执行文件
-debug/
-target/
-
-# rustfmt 生成的备份文件
-**/*.rs.bk
-
-# MSVC Windows 构建生成的调试信息
-*.pdb
-
-# cargo mutants 生成的变异测试数据
-**/mutants.out*/
-
-# ===========================
-# Tauri
-# ===========================
-# Tauri 构建输出目录
-src-tauri/target/
-src-tauri/WixTools/
-
-# Tauri 生成的配置文件
-src-tauri/tauri.conf.json.bak
-
-# ===========================
 # Node.js / npm / pnpm / yarn
 # ===========================
-# 依赖目录
 node_modules/
 .pnpm-store/
 
-# 日志文件
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# 包管理器锁文件（根据项目选择保留或忽略）
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
 # ===========================
 # Vite
 # ===========================
-# Vite 构建输出
 dist/
 dist-ssr/
 *.local
-
-# Vite 缓存
 .vite/
 
 # ===========================
-# Svelte
+# Svelte / SvelteKit
 # ===========================
-# Svelte 编译输出
 .svelte-kit/
 build/
+/package
 
 # ===========================
-# 编辑器 / IDE
+# Editors / IDEs
 # ===========================
-# VS Code
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 
-# JetBrains IDEs (WebStorm, RustRover, IntelliJ IDEA 等)
 .idea/
 *.iml
 *.iws
 *.ipr
 
-# Sublime Text
 *.sublime-workspace
 *.sublime-project
 
-# Vim
 *.swp
 *.swo
 *~
 
 # ===========================
-# 操作系统
+# OS
 # ===========================
-# macOS
 .DS_Store
 .AppleDouble
 .LSOverride
 Icon
 ._*
 
-# Windows
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
@@ -104,41 +62,31 @@ ehthumbs_vista.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Linux
-*~
 .directory
 .Trash-*
 
 # ===========================
-# 环境变量与配置
+# Env & config
 # ===========================
 .env
 .env.local
 .env.*.local
 .env.production
+!.env.example
 
 # ===========================
-# 测试覆盖率
+# Coverage
 # ===========================
 coverage/
 *.lcov
 .nyc_output/
 
 # ===========================
-# 临时文件
+# Misc
 # ===========================
 *.tmp
 *.temp
 *.log
 *.cache
-
-.DS_Store
-node_modules
-/build
-/.svelte-kit
-/package
-.env
-.env.*
-!.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

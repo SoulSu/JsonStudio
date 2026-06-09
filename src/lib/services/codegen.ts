@@ -1,21 +1,18 @@
-import { invoke } from '@tauri-apps/api/core';
-import {
-  quicktype,
-  InputData,
-  jsonInputForTargetLanguage,
-} from 'quicktype-core';
+// Code generation service — pure browser-side implementation via quicktype-core.
+// Web build drops the protobuf/thrift targets and the reverse "code → JSON"
+// direction (both required the Rust backend with no equivalent JS implementation).
+import { quicktype, InputData, jsonInputForTargetLanguage } from 'quicktype-core';
 
 export type CodegenLanguage =
   | 'typescript' | 'rust' | 'go' | 'java' | 'python' | 'kotlin' | 'swift' | 'csharp'
   | 'dart' | 'php' | 'ruby' | 'scala' | 'cpp' | 'javascript' | 'objectivec'
-  | 'elm' | 'haskell' | 'crystal' | 'elixir' | 'pike'
-  | 'protobuf' | 'thrift';
+  | 'elm' | 'haskell' | 'crystal' | 'elixir' | 'pike';
 
 interface LangConfig {
   id: CodegenLanguage;
   label: string;
   monacoLang: string;
-  quicktypeName?: string;
+  quicktypeName: string;
   rendererOptions?: Record<string, string>;
 }
 
@@ -40,20 +37,12 @@ export const CODEGEN_LANGUAGES: LangConfig[] = [
   { id: 'crystal', label: 'Crystal', monacoLang: 'plaintext', quicktypeName: 'crystal' },
   { id: 'elixir', label: 'Elixir', monacoLang: 'plaintext', quicktypeName: 'elixir', rendererOptions: { 'just-types': 'true' } },
   { id: 'pike', label: 'Pike', monacoLang: 'plaintext', quicktypeName: 'pike' },
-  { id: 'protobuf', label: 'Protobuf', monacoLang: 'protobuf' },
-  { id: 'thrift', label: 'Thrift', monacoLang: 'plaintext' },
 ];
 
-const BACKEND_ONLY_LANGUAGES = new Set<CodegenLanguage>(['protobuf', 'thrift']);
-
-const REVERSE_SUPPORTED_LANGUAGES = new Set<CodegenLanguage>([
-  'typescript', 'java', 'kotlin', 'go', 'rust', 'python', 'swift', 'csharp',
-  'dart', 'php', 'ruby', 'scala', 'cpp', 'protobuf', 'thrift',
-  'javascript', 'objectivec', 'elm', 'haskell', 'crystal', 'elixir', 'pike',
-]);
-
-export function supportsReverse(language: CodegenLanguage): boolean {
-  return REVERSE_SUPPORTED_LANGUAGES.has(language);
+// Reverse (code → JSON) parsing was implemented in Rust; no equivalent JS lib
+// is bundled in the Web build, so the feature is unavailable here.
+export function supportsReverse(_language: CodegenLanguage): boolean {
+  return false;
 }
 
 export async function generateCode(
@@ -61,14 +50,8 @@ export async function generateCode(
   language: CodegenLanguage,
   className: string,
 ): Promise<string> {
-  if (BACKEND_ONLY_LANGUAGES.has(language)) {
-    return await invoke<string>('json_to_code', { content, language, className });
-  }
-
-  const langConfig = CODEGEN_LANGUAGES.find(l => l.id === language);
-  if (!langConfig?.quicktypeName) {
-    throw new Error(`Unsupported language: ${language}`);
-  }
+  const langConfig = CODEGEN_LANGUAGES.find((l) => l.id === language);
+  if (!langConfig) throw new Error(`Unsupported language: ${language}`);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const qtLang: any = langConfig.quicktypeName;
@@ -88,9 +71,9 @@ export async function generateCode(
 }
 
 export async function codeToJson(
-  content: string,
-  language: CodegenLanguage,
-  className: string,
+  _content: string,
+  _language: CodegenLanguage,
+  _className: string,
 ): Promise<string> {
-  return await invoke<string>('code_to_json', { content, language, className });
+  throw new Error('Code → JSON conversion is not available in the Web build.');
 }

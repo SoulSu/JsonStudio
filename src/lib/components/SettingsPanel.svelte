@@ -1,18 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { getVersion } from '@tauri-apps/api/app';
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
-  import { check } from '@tauri-apps/plugin-updater';
   import { settingsStore, darkThemes, lightThemes, type AppSettings } from '$lib/stores/settings';
   import { shortcutsStore, type ShortcutsSettings } from '$lib/stores/shortcuts';
-  import {
-    checkInstallAndNotifyAppUpdate,
-    checkForAppUpdate,
-    createInitialUpdaterState,
-    installAppUpdate,
-    restartAfterAppUpdate,
-  } from '$lib/services/appUpdater';
   import { t, availableLocales, localeNames, type Locale } from '$lib/i18n';
   import ShortcutRecorder from './ShortcutRecorder.svelte';
 
@@ -28,8 +16,8 @@
   let isOpen = $state(false);
   let activeTab = $state<SettingsTab>('appearance');
   let shortcuts = $state<ShortcutsSettings | null>(null);
-  let updaterState = $state(createInitialUpdaterState(''));
-  
+  let appVersion = $state<string>(__APP_VERSION__ ?? '');
+
   let settings = $state<AppSettings>({
     isDarkMode: false,
     darkTheme: 'one-dark',
@@ -39,8 +27,6 @@
     lineHeight: 20,
     tabSize: 2,
     showTreeView: true,
-    showFolderView: true,
-    autoSave: false,
   });
   
   $effect(() => {
@@ -55,42 +41,6 @@
       shortcuts = newShortcuts;
     });
     return () => unsubscribe();
-  });
-
-  onMount(() => {
-    let unlistenCheckForUpdate: (() => void) | null = null;
-
-    getVersion()
-      .then(version => {
-        updaterState = { ...updaterState, currentVersion: version };
-      })
-      .catch(error => {
-        updaterState = {
-          ...updaterState,
-          status: 'error',
-          messageKey: 'settings.updateFailed',
-          error: error instanceof Error ? error.message : String(error),
-        };
-      });
-
-    listen('check-for-update', () => {
-      void handleMenuCheckForUpdate();
-    })
-      .then(unlisten => {
-        unlistenCheckForUpdate = unlisten;
-      })
-      .catch(error => {
-        updaterState = {
-          ...updaterState,
-          status: 'error',
-          messageKey: 'settings.updateFailed',
-          error: error instanceof Error ? error.message : String(error),
-        };
-      });
-
-    return () => {
-      unlistenCheckForUpdate?.();
-    };
   });
 
   export function open() {
@@ -133,66 +83,6 @@
     settingsStore.updateSetting('showTreeView', value);
   }
 
-  function handleFolderViewToggle(value: boolean) {
-    settingsStore.updateSetting('showFolderView', value);
-  }
-
-  function handleAutoSaveToggle(value: boolean) {
-    settingsStore.updateSetting('autoSave', value);
-  }
-
-  async function handleCheckForUpdate() {
-    updaterState = {
-      ...updaterState,
-      status: 'checking',
-      messageKey: 'settings.updateChecking',
-      error: null,
-    };
-    updaterState = await checkForAppUpdate(updaterState, { check });
-  }
-
-  async function handleMenuCheckForUpdate() {
-    await checkInstallAndNotifyAppUpdate({
-      check,
-      message: async content => window.alert(content),
-      confirm: async content => window.confirm(content),
-      relaunch: () => invoke('restart_app'),
-      labels: {
-        latest: $t('settings.updateLatest'),
-        available: version =>
-          `${$t('settings.menuUpdateAvailable')}${version ? ` ${version}` : ''}\n${$t('settings.menuUpdateDownloading')}`,
-        readyToRestart: $t('settings.menuUpdateReadyToRestart'),
-        failed: $t('settings.updateFailed'),
-      },
-    });
-  }
-
-  async function handleInstallUpdate() {
-    updaterState = {
-      ...updaterState,
-      status: 'installing',
-      messageKey: 'settings.updateInstalling',
-      error: null,
-    };
-    updaterState = await installAppUpdate(updaterState);
-  }
-
-  async function handleRestartAfterUpdate() {
-    try {
-      await restartAfterAppUpdate({ relaunch: () => invoke('restart_app') });
-    } catch (error) {
-      updaterState = {
-        ...updaterState,
-        status: 'error',
-        messageKey: 'settings.updateFailed',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  function isUpdaterBusy() {
-    return updaterState.status === 'checking' || updaterState.status === 'installing';
-  }
 
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
@@ -417,24 +307,6 @@
             <div class="settings-item">
               <div class="settings-item-row">
                 <div class="settings-item-label">
-                  <span class="settings-item-name">{$t('settings.folderView')}</span>
-                  <span class="settings-hint">{$t('settings.folderViewHint')}</span>
-                </div>
-                <button
-                  class="settings-toggle {settings.showFolderView ? 'is-on' : ''}"
-                  onclick={() => handleFolderViewToggle(!settings.showFolderView)}
-                  type="button"
-                  aria-pressed={settings.showFolderView}
-                  title={$t('settings.folderView')}
-                >
-                  <span class="settings-toggle-thumb"></span>
-                </button>
-              </div>
-            </div>
-
-            <div class="settings-item">
-              <div class="settings-item-row">
-                <div class="settings-item-label">
                   <span class="settings-item-name">{$t('settings.treeView')}</span>
                   <span class="settings-hint">{$t('settings.treeViewHint')}</span>
                 </div>
@@ -450,23 +322,6 @@
               </div>
             </div>
 
-            <div class="settings-item">
-              <div class="settings-item-row">
-                <div class="settings-item-label">
-                  <span class="settings-item-name">{$t('settings.autoSave')}</span>
-                  <span class="settings-hint">{$t('settings.autoSaveHint')}</span>
-                </div>
-                <button
-                  class="settings-toggle {settings.autoSave ? 'is-on' : ''}"
-                  onclick={() => handleAutoSaveToggle(!settings.autoSave)}
-                  type="button"
-                  aria-pressed={settings.autoSave}
-                  title={$t('settings.autoSave')}
-                >
-                  <span class="settings-toggle-thumb"></span>
-                </button>
-              </div>
-            </div>
           </div>
         </section>
         {/if}
@@ -481,55 +336,7 @@
               <div class="settings-item-row">
                 <div class="settings-item-label">
                   <span class="settings-item-name">{$t('settings.currentVersion')}</span>
-                  <span class="settings-hint">{updaterState.currentVersion || $t('settings.versionUnknown')}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="settings-item">
-              <div class="settings-item-row settings-update-row">
-                <div class="settings-item-label">
-                  <span class="settings-item-name">{$t('settings.autoUpdate')}</span>
-                  <span class="settings-hint">
-                    {$t(updaterState.messageKey)}
-                    {#if updaterState.update?.version}
-                      <span class="settings-inline-version">{updaterState.update.version}</span>
-                    {/if}
-                  </span>
-                  {#if updaterState.error}
-                    <span class="settings-error">{updaterState.error}</span>
-                  {/if}
-                </div>
-
-                <div class="settings-update-actions">
-                  <button
-                    class="settings-secondary-btn"
-                    onclick={handleCheckForUpdate}
-                    disabled={isUpdaterBusy()}
-                    type="button"
-                  >
-                    {updaterState.status === 'checking' ? $t('settings.updateCheckingButton') : $t('settings.checkUpdate')}
-                  </button>
-
-                  {#if updaterState.status === 'available'}
-                    <button
-                      class="settings-primary-btn"
-                      onclick={handleInstallUpdate}
-                      type="button"
-                    >
-                      {$t('settings.installUpdate')}
-                    </button>
-                  {/if}
-
-                  {#if updaterState.status === 'ready-to-restart'}
-                    <button
-                      class="settings-primary-btn"
-                      onclick={handleRestartAfterUpdate}
-                      type="button"
-                    >
-                      {$t('settings.restartApp')}
-                    </button>
-                  {/if}
+                  <span class="settings-hint">{appVersion || $t('settings.versionUnknown')}</span>
                 </div>
               </div>
             </div>
@@ -588,17 +395,9 @@
             </div>
           {/snippet}
 
-          <div class="settings-shortcut-group-label">{$t('settings.shortcutsGlobal')}</div>
-          <div class="settings-list">
-            {@render shortcutRow('settings.showApp', 'settings.showAppDesc', shortcuts.showApp)}
-            {@render shortcutRow('settings.formatClipboard', 'settings.formatClipboardDesc', shortcuts.formatClipboard)}
-          </div>
-
           <div class="settings-shortcut-group-label">{$t('settings.shortcutsApp')}</div>
           <div class="settings-list">
             {@render shortcutRow('settings.newFile', 'settings.newFileDesc', shortcuts.newFile)}
-            {@render shortcutRow('settings.openFile', 'settings.openFileDesc', shortcuts.openFile)}
-            {@render shortcutRow('settings.saveFile', 'settings.saveFileDesc', shortcuts.saveFile)}
             {@render shortcutRow('settings.format', 'settings.formatDesc', shortcuts.format)}
             {@render shortcutRow('settings.minify', 'settings.minifyDesc', shortcuts.minify)}
             {@render shortcutRow('settings.escape', 'settings.escapeDesc', shortcuts.escape)}
@@ -607,7 +406,6 @@
             {@render shortcutRow('settings.foldAll', 'settings.foldAllDesc', shortcuts.foldAll)}
             {@render shortcutRow('settings.unfoldAll', 'settings.unfoldAllDesc', shortcuts.unfoldAll)}
             {@render shortcutRow('settings.closeOtherTabs', 'settings.closeOtherTabsDesc', shortcuts.closeOtherTabs)}
-            {@render shortcutRow('settings.quitApp', 'settings.quitAppDesc', shortcuts.quitApp)}
           </div>
         </section>
         {/if}

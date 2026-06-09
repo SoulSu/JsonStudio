@@ -1,126 +1,109 @@
 <div align="center">
 
-**English** | [中文](README_ZH.md)
+**中文** | [English](README_EN.md)
 
-# JsonStudio
+# JsonStudio Web
 
-### A fast, local-first JSON workspace for everyday development
+### 纯前端、可离线、可一键部署的 JSON 工作台
 
-Prettify, inspect, compare, convert, validate, and extract JSON from real-world logs - all locally in a native desktop app.
-
-**[jsonstudio.js.org](https://jsonstudio.js.org/)** · **[Download](https://github.com/sundegan/JsonStudio/releases)**
+格式化、对比、转换、校验，从混合日志里挑出 JSON —— 全部在浏览器里完成，**无需后端**。
 
 <p align="center">
-  <a href="https://jsonstudio.js.org/">
-    <img src="https://img.shields.io/badge/Website-f5c542?style=flat-square&logo=googlechrome&logoColor=white" alt="Website">
-  </a>
-  <a href="https://github.com/sundegan/JsonStudio/releases">
-    <img src="https://img.shields.io/github/v/release/sundegan/JsonStudio?style=flat-square&color=10b981&label=Release&logo=github&logoColor=white" alt="Release">
-  </a>
-  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-334155?style=flat-square&logo=apple&logoColor=white" alt="Platform">
-  <img src="https://img.shields.io/badge/Tauri-2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white" alt="Tauri">
-  <img src="https://img.shields.io/badge/Rust-2024-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/Privacy-100%25%20Local-166534?style=flat-square&logo=docsdotrs&logoColor=white" alt="Privacy">
+  <img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5">
+  <img src="https://img.shields.io/badge/SvelteKit-static-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="SvelteKit static">
+  <img src="https://img.shields.io/badge/Monaco-Editor-0078D4?style=flat-square&logo=visualstudiocode&logoColor=white" alt="Monaco">
+  <img src="https://img.shields.io/badge/Cloudflare-Pages-F38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare Pages">
+  <img src="https://img.shields.io/badge/License-Apache--2.0-166534?style=flat-square" alt="License">
 </p>
 
-<sub>all-in-one JSON workspace · professional developer experience · native-speed performance</sub>
+<sub>Fork 自 <a href="https://github.com/sundegan/JsonStudio">sundegan/JsonStudio</a> · 由桌面端 (Tauri) 移植到纯前端</sub>
 
 </div>
 
-## Preview
+## 这是什么
 
-![Dark Theme](docs/images_en/app_home_page_dark_mode.png)
+[sundegan/JsonStudio](https://github.com/sundegan/JsonStudio) 是一个非常好用的 JSON 桌面工具。本仓库在此基础上 fork，把原本由 Rust 后端承担的能力**全部用纯前端 JS/TS 重新实现**，移除了 Tauri 桌面壳，使其可以直接部署到 Cloudflare Pages、Vercel、GitHub Pages 等静态托管平台。
 
-![Light Theme](docs/images_en/app_home_page_light_mode.png)
+适用于：
 
-## What Makes It Different
+- 想把团队内部 JSON 工具放到一个 URL 后面供所有人使用
+- 不希望敏感 JSON 数据离开浏览器（所有处理都在本地完成）
+- 喜欢 JsonStudio 的体验，但偏好 Web 形态而不是装一个桌面应用
 
-JsonStudio is built for JSON in real development work: API requests and responses, deeply nested data, escaped strings, JSON5-like snippets, and log lines where plain text and JSON are mixed together.
+## 在线试用
 
-- **Local-first desktop app**: no network required, no browser required, no ads, a polished UI, shortcut support, and no more jumping between a pile of web tabs.
-- **Smarter formatting**: supports standard JSON, JSON-like/JSON5 input, escaped JSON strings, JSON with trailing commas, JSON with unquoted keys, automatic repair attempts for problematic JSON data, and paste auto-formatting.
-- **Log-like text and JSON mixed content formatting**: keeps the original log unchanged, extracts JSON fragments automatically, and displays structured results separately for easier log data inspection.
-- **Better reading and review**: tree view, JMESPath/JSONPath query, real-time statistics, and JSON diff make complex JSON data easier to understand.
-- **Details that fit daily use**: preserves original object key order by default, keeps JSON editing operations undoable, and reuses existing tabs when reopening files.
-- **Developer tools**: prettify, minify, escape, unescape, minify + escape, fold, unfold, JSON Schema generation/validation, JSON <-> YAML/XML/TOML/CSV conversion, and typed code generation.
-- **Smooth file workflow**: multi-tabs, auto-numbered Untitled tabs, reused tabs for reopened files, unsaved-change prompts, optional auto-save, drag-and-drop JSON opening, and direct opening by double-clicking JSON files.
+部署后访问你自己的 Cloudflare Pages / Vercel 域名即可。本仓库不托管公共实例。
 
-## Features
+## 主要功能
 
-### Edit & View
+继承自上游的能力，全部已用纯前端实现：
 
-![Editor](docs/images_en/editor.png)
+- **强大的 JSON 编辑**：基于 Monaco Editor，语法高亮、代码折叠、查找替换、明暗主题、10+ 配色。
+- **多形态 JSON 输入**：标准 JSON、JSON5、被转义的 JSON 字符串、带尾逗号 / 未加引号 key 的 JSON、`Infinity`/`NaN` 等非标准字面量都能解析；接收日志类文本时自动挑出其中的 JSON 片段。
+- **树形 / 表格视图 + 搜索**：左侧编辑、右侧浏览，支持 JMESPath 和 JSONPath 查询。
+- **多标签 + 持久化**：所有标签内容、设置、快捷键都存在 `localStorage`，刷新不丢。
+- **对比 / 转换 / 代码生成 / Schema**：
+  - JSON Diff（基于 Monaco diff）
+  - YAML / XML / TOML / CSV 双向转换（`js-yaml` / `fast-xml-parser` / `@iarna/toml` / `papaparse`，按需懒加载）
+  - 类型代码生成：TypeScript / Go / Rust / Python / Swift / Kotlin / C# / Java / Ruby / Dart / C++ / Scala / Elm / Haskell / Crystal / Elixir / Pike 等 19 种语言（基于 `quicktype-core`）
+  - JSON Schema 生成与校验（`AJV`）
+- **导出图片**：直接把当前编辑器渲染为 PNG / JPEG 触发浏览器下载（`html-to-image`）。
 
-Built on Monaco Editor, JsonStudio provides a top-tier JSON prettify and viewing experience with syntax highlighting, code folding, find/replace, bracket coloring, light/dark mode, and 10+ themes.
+## 上游的哪些功能被移除了
 
-### Multi-format Input Support
+为了适配浏览器环境，以下桌面专属能力**已在 Web 版中删除**：
 
-![Log Fragment (Light)](docs/images_en/log_fragment.png)
+- 打开 / 保存本地文件（包括拖拽打开 .json）—— 改为粘贴板 + 浏览器下载
+- 文件夹侧边栏与文件监听
+- 应用自动更新、退出 / 重启 / 打开开发者工具按钮
+- 窗口置顶、原生菜单、全局快捷键、单实例锁
+- protobuf / thrift 代码生成与代码反推回 JSON（无成熟 JS 实现）
+- macOS Finder / Windows 资源管理器集成（如"在文件夹中显示"）
 
-JsonStudio handles standard JSON, JSON5-like input, escaped JSON strings, trailing commas, unquoted keys, and mixed log text with embedded JSON fragments. It keeps original text intact while extracting structured JSON results for review.
+如果你需要这些能力，请继续使用[上游桌面版](https://github.com/sundegan/JsonStudio)。
 
-### Tree View & Search
+## 本地开发
 
-![Tree View](docs/images_en/tree_view.png)
-
-Use the tree view to navigate nested data, copy paths or values, and query with JMESPath or JSONPath when a payload is too large to scan manually.
-
-### Compare, Convert, Generate
-
-![JSON Diff](docs/images_en/json_diff.png)
-
-![Converter](docs/images_en/convert.png)
-
-![Code Gen](docs/images_en/code_gen.png)
-
-Compare JSON side by side, convert between common data formats, generate typed models, or extract JSON back from supported code snippets.
-
-### Validate With Schema
-
-![JSON Schema](docs/images_en/json_schema.png)
-
-Generate JSON Schema from data, validate JSON against a schema, and inspect detailed validation errors in a dedicated workspace.
-
-## Why JsonStudio? (vs Online Tools)
-
-| Capability | Online Tools | JsonStudio |
-|---|---:|---:|
-| Works fully offline with local files | Limited | Yes |
-| Keeps sensitive JSON on your machine | Risky | 100% local |
-| Handles JSON, JSON5-like input, escaped JSON, and repairable fragments | Partial | Built in |
-| Extracts JSON from log-like mixed text | Rare | Yes |
-| Tree view with JMESPath/JSONPath query | Partial | Yes |
-| Multi-tab workflow with unsaved prompts and optional auto-save | No | Yes |
-| Native shortcuts, format clipboard, always-on-top window | No | Yes |
-| Diff, convert, schema validation, and code generation in one app | Fragmented | Unified |
-
-## Download
-
-Download the latest installer from [GitHub Releases](https://github.com/sundegan/JsonStudio/releases).
-
-### Homebrew (macOS)
-
-```sh
-brew install --cask sundegan/tap/json-studio
+```bash
+pnpm install
+pnpm dev          # http://localhost:5173
+pnpm test         # node --test 单元测试
+pnpm check        # svelte-check 类型检查
+pnpm build        # 产物输出到 build/
+pnpm preview      # 本地预览生产构建
 ```
 
-### macOS
+要求：Node.js ≥ 22（用到了 `--experimental-strip-types` 来直接执行 .ts 测试）。
 
-1. Download the DMG for your Mac architecture (`aarch64` for Apple Silicon, `x64` for Intel).
-2. Open the DMG and drag `Json Studio.app` into Applications.
-3. On first launch, if macOS blocks the app because it is from an unidentified developer, right-click `Json Studio.app` and choose **Open**, or allow it in **System Settings > Privacy & Security**.
+## 部署到 Cloudflare Pages
 
-Current macOS builds are not Apple Developer ID notarized, so the first launch may require manual confirmation.
+构建命令、输出目录、SPA fallback 已全部配好：
 
-## Tech Stack
+| 字段 | 值 |
+|---|---|
+| 构建命令 | `pnpm install && pnpm build` |
+| 输出目录 | `build` |
+| Node 版本 | `22` 或更高 |
+| SPA fallback | `static/_redirects`（已包含 `/*  /index.html  200`） |
 
-- **Desktop**: Tauri 2.0 + Svelte 5 + Monaco Editor
-- **Core**: Rust + Javascript
+在 Cloudflare Pages 控制台 → Pages → Create project → Connect to Git → 选择仓库 → 按上表填写即可。
 
----
+也可以一键部署到 Vercel / Netlify / GitHub Pages，只要支持 SPA fallback 即可。
 
-<div align="center">
+## 技术栈
 
-If JsonStudio helps your daily JSON work, a star would mean a lot.
+- **Svelte 5** + **SvelteKit**（`@sveltejs/adapter-static`）
+- **Monaco Editor** —— 文本编辑核心
+- **TailwindCSS 4** —— 样式
+- 一组针对各类数据的纯 JS 库：`json5`、`@mischnic/json-sourcemap`、`js-yaml`、`fast-xml-parser`、`@iarna/toml`、`papaparse`、`jsonrepair`、`jmespath`、`jsonpath-plus`、`ajv`、`quicktype-core`、`html-to-image`、`jspdf`
 
-</div>
+## 致谢
+
+- [@sundegan](https://github.com/sundegan) —— [JsonStudio](https://github.com/sundegan/JsonStudio) 的原作者，本项目的所有产品设计、UI 与绝大部分前端代码都来自上游。
+- Monaco Editor、Svelte、Tailwind、quicktype 及上面列出的所有库的维护者。
+
+## 许可证
+
+本项目使用 [Apache License 2.0](LICENSE)，与上游保持一致。请同时阅读 [NOTICE](NOTICE) 了解 fork 起点与改动摘要。
+
+如果你 fork 或再分发本项目，请保留 `LICENSE` 和 `NOTICE` 文件，并在你自己的 README 中标注上游与本项目的归属。

@@ -6,17 +6,11 @@ export interface ShortcutConfig {
   description: string;
   defaultKey: string;
   currentKey: string;
-  isGlobal?: boolean;
 }
 
 export interface ShortcutsSettings {
-  // Global shortcuts (registered via Tauri backend)
-  showApp: ShortcutConfig;
-  formatClipboard: ShortcutConfig;
-  // Editor shortcuts (handled via frontend keydown)
+  // Editor shortcuts (handled via frontend keydown — the only kind in Web build)
   newFile: ShortcutConfig;
-  openFile: ShortcutConfig;
-  saveFile: ShortcutConfig;
   format: ShortcutConfig;
   minify: ShortcutConfig;
   escape: ShortcutConfig;
@@ -25,46 +19,15 @@ export interface ShortcutsSettings {
   foldAll: ShortcutConfig;
   unfoldAll: ShortcutConfig;
   closeOtherTabs: ShortcutConfig;
-  quitApp: ShortcutConfig;
 }
 
 const defaultShortcuts: ShortcutsSettings = {
-  showApp: {
-    id: 'show_app',
-    name: 'Show App',
-    description: 'Bring Json Studio to front',
-    defaultKey: 'CommandOrControl+Shift+J',
-    currentKey: 'CommandOrControl+Shift+J',
-    isGlobal: true,
-  },
-  formatClipboard: {
-    id: 'format_clipboard',
-    name: 'Format Clipboard',
-    description: 'Format JSON in clipboard and display',
-    defaultKey: 'CommandOrControl+Shift+V',
-    currentKey: 'CommandOrControl+Shift+V',
-    isGlobal: true,
-  },
   newFile: {
     id: 'new_file',
     name: 'New File',
     description: 'Create a new tab',
     defaultKey: 'CommandOrControl+N',
     currentKey: 'CommandOrControl+N',
-  },
-  openFile: {
-    id: 'open_file',
-    name: 'Open File',
-    description: 'Open a file',
-    defaultKey: 'CommandOrControl+O',
-    currentKey: 'CommandOrControl+O',
-  },
-  saveFile: {
-    id: 'save_file',
-    name: 'Save File',
-    description: 'Save current file',
-    defaultKey: 'CommandOrControl+S',
-    currentKey: 'CommandOrControl+S',
   },
   format: {
     id: 'format',
@@ -122,13 +85,6 @@ const defaultShortcuts: ShortcutsSettings = {
     defaultKey: 'CommandOrControl+Shift+W',
     currentKey: 'CommandOrControl+Shift+W',
   },
-  quitApp: {
-    id: 'quit_app',
-    name: 'Quit',
-    description: 'Quit the application',
-    defaultKey: 'CommandOrControl+Q',
-    currentKey: 'CommandOrControl+Q',
-  },
 };
 
 const STORAGE_KEY = 'jsonstudio_shortcuts';
@@ -162,73 +118,36 @@ function createShortcutsStore() {
         }
       }
     },
-    updateShortcut: async (id: string, key: string) => {
-      let isGlobal = false;
+    updateShortcut: (id: string, key: string) => {
       update(state => {
         const newState = { ...state };
         for (const shortcutKey in newState) {
           const k = shortcutKey as keyof ShortcutsSettings;
           if (newState[k].id === id) {
             newState[k] = { ...newState[k], currentKey: key };
-            isGlobal = !!newState[k].isGlobal;
           }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
         return newState;
       });
-
-      if (isGlobal) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('update_shortcut', { id, key });
-        } catch (error) {
-          console.error('Failed to update shortcut:', error);
-        }
-      }
     },
-    resetShortcut: async (id: string) => {
-      let isGlobal = false;
-      let defaultKey = '';
+    resetShortcut: (id: string) => {
       update(state => {
         const newState = { ...state };
         for (const shortcutKey in newState) {
           const k = shortcutKey as keyof ShortcutsSettings;
           if (newState[k].id === id) {
             newState[k] = { ...newState[k], currentKey: newState[k].defaultKey };
-            isGlobal = !!newState[k].isGlobal;
-            defaultKey = newState[k].defaultKey;
           }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
         return newState;
       });
-
-      if (isGlobal && defaultKey) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('update_shortcut', { id, key: defaultKey });
-        } catch (error) {
-          console.error('Failed to reset global shortcut:', error);
-        }
-      }
     },
-    reset: async () => {
+    reset: () => {
       const freshDefaults = getDefaultShortcuts();
       set(freshDefaults);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDefaults));
-      
-      // Update all global shortcuts to their defaults in the backend
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        for (const key in freshDefaults) {
-          const shortcut = freshDefaults[key as keyof ShortcutsSettings];
-          if (shortcut.isGlobal) {
-            await invoke('update_shortcut', { id: shortcut.id, key: shortcut.defaultKey });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to reset all global shortcuts:', error);
-      }
     },
     matchShortcut(e: KeyboardEvent): string | null {
       const state = get({ subscribe });
@@ -237,7 +156,6 @@ function createShortcutsStore() {
 
       for (const shortcutKey in state) {
         const shortcut = state[shortcutKey as keyof ShortcutsSettings];
-        if (shortcut.isGlobal) continue;
         if (matchKey(shortcut.currentKey, e, cmdOrCtrl)) {
           return shortcut.id;
         }
@@ -286,7 +204,7 @@ export const shortcutsStore = createShortcutsStore();
 
 export function formatShortcutKey(key: string): string {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  
+
   let formatted = key
     .replace(/CommandOrControl/g, isMac ? '⌘' : 'Ctrl')
     .replace(/Command/g, '⌘')
@@ -295,6 +213,6 @@ export function formatShortcutKey(key: string): string {
     .replace(/Alt/g, isMac ? '⌥' : 'Alt')
     .replace(/Option/g, '⌥')
     .replace(/\+/g, isMac ? '' : '+');
-  
+
   return formatted;
 }

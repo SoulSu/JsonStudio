@@ -1,41 +1,49 @@
 {
-  "name": "Json Studio",
+  "name": "jsonstudio-web",
   "version": "1.2.1",
-  "description": "Fast, modern, and efficient JSON desktop tool",
+  "description": "JsonStudio Web — a fork of sundegan/JsonStudio, ported from Tauri to a pure-frontend SvelteKit app ready for Cloudflare Pages.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test \"tests/**/*.test.js\"",
+    "test": "node --experimental-strip-types --no-warnings --test \"tests/**/*.test.js\"",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
   },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sundegan/JsonStudio"
+    "url": "https://github.com/SoulSu/JsonStudio"
   },
-  "author": "sundegan",
+  "homepage": "https://github.com/SoulSu/JsonStudio",
+  "bugs": {
+    "url": "https://github.com/SoulSu/JsonStudio/issues"
+  },
+  "author": "SoulSu",
+  "contributors": [
+    "sundegan (https://github.com/sundegan) — original JsonStudio author"
+  ],
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
     "@mischnic/json-sourcemap": "^0.1.1",
     "@monaco-editor/loader": "^1.7.0",
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-updater": "^2.10.1",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "bits-ui": "^2.15.2",
     "clsx": "^2.1.1",
     "fast-deep-equal": "^3.1.3",
+    "fast-xml-parser": "^5.8.0",
     "html-to-image": "^1.11.13",
     "jmespath": "^0.16.0",
+    "js-yaml": "^4.2.0",
+    "json5": "^2.2.3",
     "jsonpath-plus": "^10.4.0",
     "jsonrepair": "^3.13.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "monaco-editor": "^0.55.1",
+    "papaparse": "^5.5.3",
     "prettier": "^3.8.3",
     "quicktype-core": "^23.2.6",
     "tailwind-merge": "^3.4.0",
@@ -50,7 +58,6 @@
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
-    "@tauri-apps/cli": "^2",
     "autoprefixer": "^10.4.23",
     "postcss": "^8.5.6",
     "svelte": "^5.0.0",

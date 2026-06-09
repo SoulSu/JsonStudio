@@ -19,7 +19,7 @@
     isGridCellEditable,
     isGridEditCommitKey,
   } from '$lib/services/gridEdit.js';
-  import { saveBinaryFileDialog } from '$lib/services/file';
+  import { downloadBlob } from '$lib/services/exportImage';
   import { getGridExportFileName } from '$lib/services/gridExportModel.js';
   import { shouldCloseGridExportMenu } from '$lib/services/gridExportMenu.js';
   import { parseJsonDocument } from '$lib/services/jsonDocumentParse.js';
@@ -259,8 +259,11 @@
         ? createGridPdfBytes(gridState.root.source)
         : createGridXlsxBytes(gridState.root.source);
       const fileName = getGridExportFileName(activeTabPath ?? activeTabName, format);
-      const savedPath = await saveBinaryFileDialog(bytes, fileName, format);
-      if (savedPath) onToast($t('gridView.exportSuccess'));
+      const mime = format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      downloadBlob(new Blob([bytes], { type: mime }), fileName);
+      onToast($t('gridView.exportSuccess'));
     } catch (error) {
       console.error('Failed to export grid:', error);
       onToast($t('gridView.exportFailed'), 'error');

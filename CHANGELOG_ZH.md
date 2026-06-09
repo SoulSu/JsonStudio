@@ -2,6 +2,33 @@
 
 此文件用于记录项目的主要变更。
 
+> 本文件继承自上游桌面项目 [sundegan/JsonStudio](https://github.com/sundegan/JsonStudio)。
+> 本 Web fork 自身的变更记录在下方 `Web fork` 段落中；其余更早的条目描述的是上游
+> Tauri 桌面版的演进，保留以便溯源。
+
+## [Web fork — 未发布]
+
+### 变更
+- 移除 Tauri 2.0 桌面壳，所有原本由 Rust 实现的功能改用纯前端 TypeScript 重写。
+- 项目结构：删除 `src-tauri/`、`tauri.conf.json`、上游静态站点 `docs/`、GitHub
+  Pages 部署工作流以及 `replace_styles.py` 辅助脚本。
+- 把 Tauri API 切换为浏览器等价：保存文件 → `Blob` 下载、`openUrl` →
+  `window.open`、版本号 → Vite 注入的 `__APP_VERSION__`。
+- 去掉桌面专属界面：文件对话框 / 文件夹侧边栏 / 文件监听、窗口置顶、原生菜单、
+  全局快捷键、自动更新、"在文件夹中显示"、退出 / 重启 / 开发者工具入口。
+
+### 新增
+- 引入 `js-yaml`、`fast-xml-parser`、`@iarna/toml`、`papaparse`（按需懒加载），
+  替代原 Rust 端的格式转换能力。
+- `static/_redirects` 提供 Cloudflare Pages 的 SPA fallback。
+- `NOTICE` 文件，说明 fork 起点与改动摘要。
+
+### 移除
+- protobuf / thrift 代码生成与代码反推回 JSON 的能力（暂无成熟 JS 实现；
+  quicktype 支持的目标语言全部保留）。
+
+---
+
 ## [1.2.1] - 2026-05-14
 
 ### 新增

@@ -1,41 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { getVersion } from '@tauri-apps/api/app';
-  import { listen } from '@tauri-apps/api/event';
-  import { openUrl } from '@tauri-apps/plugin-opener';
   import { t } from '$lib/i18n';
 
-  const githubUrl = 'https://github.com/sundegan/JsonStudio';
-  const githubLabel = 'sundegan/JsonStudio';
+  const githubUrl = 'https://github.com/SoulSu/JsonStudio';
+  const githubLabel = 'SoulSu/JsonStudio';
+  const upstreamUrl = 'https://github.com/sundegan/JsonStudio';
+  const upstreamLabel = 'sundegan/JsonStudio';
 
   let isOpen = $state(false);
-  let version = $state('');
+  let version = $state(__APP_VERSION__ ?? '');
 
-  onMount(() => {
-    let unlistenShowAbout: (() => void) | null = null;
-
-    getVersion()
-      .then(appVersion => {
-        version = appVersion;
-      })
-      .catch(() => {
-        version = '';
-      });
-
-    listen('show-about', () => {
-      isOpen = true;
-    })
-      .then(unlisten => {
-        unlistenShowAbout = unlisten;
-      })
-      .catch(error => {
-        console.error('Failed to listen for about menu event:', error);
-      });
-
-    return () => {
-      unlistenShowAbout?.();
-    };
-  });
+  export function open() {
+    isOpen = true;
+  }
 
   function close() {
     isOpen = false;
@@ -53,8 +29,8 @@
     }
   }
 
-  async function openGithub() {
-    await openUrl('https://github.com/sundegan/JsonStudio');
+  function openUrl(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 </script>
 
@@ -86,16 +62,23 @@
           <span>{$t('about.version')}</span>
           <strong>{version || $t('settings.versionUnknown')}</strong>
         </div>
-        <button class="about-link" type="button" onclick={openGithub}>
+        <button class="about-link" type="button" onclick={() => openUrl(githubUrl)}>
           <span>{$t('about.github')}</span>
           <strong title={githubUrl}>{githubLabel}</strong>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 17 17 7M9 7h8v8" />
           </svg>
         </button>
+        <button class="about-link" type="button" onclick={() => openUrl(upstreamUrl)}>
+          <span>Forked from</span>
+          <strong title={upstreamUrl}>{upstreamLabel}</strong>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 17 17 7M9 7h8v8" />
+          </svg>
+        </button>
       </div>
 
-      <p class="about-footer">Copyright © 2025 Json Studio</p>
+      <p class="about-footer">Json Studio Web · Apache-2.0 · forked from sundegan/JsonStudio</p>
     </section>
   </div>
 {/if}

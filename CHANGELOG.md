@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here.
 
+> This file inherits the history of the upstream desktop project
+> [sundegan/JsonStudio](https://github.com/sundegan/JsonStudio). The fork's own
+> changes are recorded in the `Web fork` section below; everything older than
+> it describes the upstream Tauri build and is kept for traceability.
+
+## [Web fork — Unreleased]
+
+### Changed
+- Removed the Tauri 2.0 desktop shell and reimplemented every Rust-backed
+  feature in pure browser-side TypeScript.
+- Project structure: deleted `src-tauri/`, `tauri.conf.json`, the upstream
+  static landing site under `docs/`, the GitHub Pages deploy workflow, and the
+  `replace_styles.py` build helper.
+- Re-routed Tauri APIs to browser equivalents: file save → `Blob` download,
+  `openUrl` → `window.open`, version info → Vite-injected `__APP_VERSION__`.
+- Stripped desktop-only UI: file dialogs / folder sidebar / file watching,
+  always-on-top, native menus, global shortcuts, auto-updater, "show in
+  folder", and quit / restart / devtools buttons.
+
+### Added
+- `js-yaml`, `fast-xml-parser`, `@iarna/toml`, `papaparse` (lazy-loaded) to
+  replace Rust-backed format conversion.
+- `static/_redirects` for Cloudflare Pages SPA fallback.
+- `NOTICE` describing the fork's origin and changes.
+
+### Removed
+- protobuf / thrift code generation and reverse code → JSON parsing (no mature
+  JS implementation; quicktype-supported languages are kept).
+
+---
+
 ## [1.2.1] - 2026-05-14
 
 ### Added

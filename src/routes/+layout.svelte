@@ -4,7 +4,7 @@
   import { shortcutsStore } from '$lib/stores/shortcuts';
   import '../app.css';
 
-  async function applyTheme(isDarkMode: boolean) {
+  function applyTheme(isDarkMode: boolean) {
     const html = document.documentElement;
     if (isDarkMode) {
       html.classList.remove('light');
@@ -12,13 +12,6 @@
       html.classList.add('light');
     }
     html.style.colorScheme = isDarkMode ? 'dark' : 'light';
-    
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('set_window_theme', { isDark: isDarkMode });
-    } catch (error) {
-      console.error('Failed to update window theme:', error);
-    }
   }
 
   onMount(() => {

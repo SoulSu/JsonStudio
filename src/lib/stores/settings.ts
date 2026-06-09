@@ -37,8 +37,6 @@ export interface AppSettings {
   lineHeight: number;
   tabSize: number;
   showTreeView: boolean;
-  showFolderView: boolean;
-  autoSave: boolean;
 }
 
 // Default settings
@@ -51,8 +49,6 @@ const defaultSettings: AppSettings = {
   lineHeight: 20,
   tabSize: 2,
   showTreeView: true,
-  showFolderView: false,
-  autoSave: false,
 };
 
 // Load settings from localStorage
@@ -82,51 +78,30 @@ function saveSettings(settings: AppSettings) {
   }
 }
 
-async function syncAppMenuLanguage(language: Locale) {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('set_app_menu_language', { language });
-  } catch (error) {
-    console.error('Failed to update app menu language:', error);
-  }
-}
-
 // Create settings store
 function createSettingsStore() {
   const { subscribe, set, update } = writable<AppSettings>(defaultSettings);
-  
+
   return {
     subscribe,
-    
+
     // Initialize (load from localStorage)
     init() {
       const settings = loadSettings();
       set(settings);
       locale.set(settings.language);
-      void syncAppMenuLanguage(settings.language);
     },
-    
+
     // Update single setting
-    async updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
       update(settings => {
         const newSettings = { ...settings, [key]: value };
         saveSettings(newSettings);
         return newSettings;
       });
-      
+
       if (key === 'language') {
         locale.set(value as Locale);
-        void syncAppMenuLanguage(value as Locale);
-      }
-
-      // If updating dark mode, sync macOS window theme
-      if (key === 'isDarkMode') {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('set_window_theme', { isDark: value });
-        } catch (error) {
-          console.error('Failed to update window theme:', error);
-        }
       }
     },
     

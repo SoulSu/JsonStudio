@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getJsonStats, type JsonStats } from '$lib/services/json';
-  import { readFile, getFileName } from '$lib/services/file';
   import { tabsStore, activeTab } from '$lib/stores/tabs';
-  import { fileWatcherService } from '$lib/services/fileWatcher';
   import MonacoEditor from './MonacoEditor.svelte';
   import MonacoDiffEditor from './MonacoDiffEditor.svelte';
   import ConvertView from './ConvertView.svelte';
@@ -13,7 +11,6 @@
   import JsonEditorToolbar from './JsonEditorToolbar.svelte';
   import JsonEditorStatusBar from './JsonEditorStatusBar.svelte';
   import RightViewPanel from './RightViewPanel.svelte';
-  import FolderSidebar from './FolderSidebar.svelte';
   import JsonEditorToast from './JsonEditorToast.svelte';
   import LogJsonFragmentsPanel from './LogJsonFragmentsPanel.svelte';
   import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
@@ -31,7 +28,7 @@
   import { normalizePastedStandaloneJson } from '$lib/services/standaloneJsonPasteNormalize.js';
   import { normalizeOpenedJson } from '$lib/services/openJsonNormalize.js';
   import { openClipboardContentInNewTab } from '$lib/services/clipboardTabs.js';
-  import { clampPanelWidth, getDefaultPanelWidth, clampFolderWidth } from '$lib/services/panelResize.js';
+  import { clampPanelWidth, getDefaultPanelWidth } from '$lib/services/panelResize.js';
   import { t } from '$lib/i18n';
 
   type LogJsonFragment = {
@@ -56,12 +53,10 @@
   let toastType = $state<'success' | 'error' | 'info'>('success');
   let statsTimer: ReturnType<typeof setTimeout> | null = null;
   let pasteFormatTimer: ReturnType<typeof setTimeout> | null = null;
-  let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
   let logJsonTimer: ReturnType<typeof setTimeout> | null = null;
   let monacoEditor = $state<MonacoEditor | null>(null);
   let toolbarRef = $state<JsonEditorToolbar | null>(null);
   let settingsPanel = $state<SettingsPanel | null>(null);
-  let isAlwaysOnTop = $state(false);
   let isDiffMode = $state(false);
   let isConvertMode = $state(false);
   let isCodegenMode = $state(false);
@@ -101,8 +96,6 @@
   let diffRightTimer: ReturnType<typeof setTimeout> | null = null;
   let treeViewWidth = $state(380);
   let isResizingTreeView = $state(false);
-  let folderViewWidth = $state(220);
-  let isResizingFolderView = $state(false);
   let mainWorkspaceEl: HTMLDivElement | null = null;
   
   let tabsState = $state<import('$lib/stores/tabs').TabsState>({
@@ -120,37 +113,8 @@
     lineHeight: 20,
     tabSize: 2,
     showTreeView: true,
-    showFolderView: true,
-    autoSave: false,
   });
   
-  async function openFilePaths(paths: string[]) {
-    for (const filePath of paths) {
-      try {
-        const fileContent = await readFile(filePath);
-        const name = await getFileName(filePath);
-        const [{ formatJson }, { formatJson5 }] = await Promise.all([
-          import('$lib/services/json'),
-          import('$lib/services/json5Format.js'),
-        ]);
-        const normalizedContent = await normalizeOpenedJson(fileContent, {
-          indent: settings.tabSize,
-          formatJson,
-          getJsonStats,
-          formatJson5,
-        });
-        tabsStore.openFile(normalizedContent, filePath, name);
-        
-        quickDetectFormatAndSwitchLanguage(normalizedContent);  // Immediate language switch
-        await updateStats(true);  // Show JSON5 toast if detected
-        showToast(`Opened: ${name || 'file'}`);
-      } catch (e) {
-        showToast('Failed to open file', 'error');
-        console.error('Open file error:', e);
-      }
-    }
-  }
-
   // Tracker for confirm dialog
   let isConfirmOpen = $state(false);
   let confirmMessage = $state('');
@@ -174,74 +138,6 @@
 
   onMount(() => {
     settingsStore.init();
-    
-    // Initialize file watcher service
-    fileWatcherService.init();
-    
-    // Listen to clipboard formatting events
-    let unlistenFormatted: (() => void) | null = null;
-    let unlistenRaw: (() => void) | null = null;
-    let unlistenFileDrop: (() => void) | null = null;
-    let unlistenOpenFile: (() => void) | null = null;
-    
-    (async () => {
-      const { listen } = await import('@tauri-apps/api/event');
-      
-      // Listen for successfully formatted JSON
-      unlistenFormatted = await listen<string>('clipboard-formatted', async (event) => {
-        const result = await openClipboardContentInNewTab(event.payload, {
-          tabsStore,
-          normalize: normalizeEditorPastedStandaloneJson,
-        });
-        showToast('Clipboard content formatted');
-        queueMicrotask(() => {
-          quickDetectFormatAndSwitchLanguage(result.content);
-          scheduleLogJsonDetection(result.content);
-          updateStats(true);
-        });
-      });
-      
-      // Listen for raw paste (when JSON is invalid)
-      unlistenRaw = await listen<string>('clipboard-pasted-raw', async (event) => {
-        const result = await openClipboardContentInNewTab(event.payload, {
-          tabsStore,
-          normalize: normalizeEditorPastedStandaloneJson,
-        });
-        showToast('Clipboard content pasted (invalid JSON)');
-        queueMicrotask(() => {
-          quickDetectFormatAndSwitchLanguage(result.content);
-          scheduleLogJsonDetection(result.content);
-          updateStats(true);
-        });
-      });
-
-      // Listen for file drop events
-      unlistenFileDrop = await listen<{ paths: string[], position: { x: number, y: number } }>('tauri://drag-drop', async (event) => {
-        const paths = event.payload?.paths;
-        if (paths && paths.length > 0) {
-          await openFilePaths(paths);
-        }
-      });
-
-      // Listen for file open events (macOS "Open With" / double-click)
-      unlistenOpenFile = await listen<string[]>('open-file', async (event) => {
-        const paths = event.payload;
-        if (!paths || paths.length === 0) return;
-        await openFilePaths(paths);
-      });
-
-      // Retrieve files queued before frontend was ready (cold start)
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const pending = await invoke<string[]>('get_pending_files');
-        if (pending && pending.length > 0) {
-          await openFilePaths(pending);
-        }
-      } catch (e) {
-        console.error('Failed to get pending files:', e);
-      }
-    })();
-    
     shortcutsStore.init();
 
     let workspaceResizeObserver: ResizeObserver | null = null;
@@ -265,7 +161,7 @@
         tabsStore.addTab();
         return;
       }
-      // Prevent native macOS/Tauri default window close behavior for Cmd+Shift+W
+      // Prevent native macOS default window close behavior for Cmd+Shift+W
       if (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'w') {
         e.preventDefault();
       }
@@ -306,22 +202,12 @@
         }
         return;
       }
-      if (cmdOrCtrl && e.shiftKey && e.key === 'i') {
-        e.preventDefault();
-        if (import.meta.env.DEV) {
-          openDevTools();
-        }
-        return;
-      }
-
       // Customizable shortcuts via shortcuts store
       const matched = shortcutsStore.matchShortcut(e);
       if (matched) {
         e.preventDefault();
         switch (matched) {
           case 'new_file': toolbarRef?.newFile(); break;
-          case 'open_file': toolbarRef?.openFile(); break;
-          case 'save_file': toolbarRef?.saveFile(); break;
           case 'format': toolbarRef?.formatContent(); break;
           case 'minify': toolbarRef?.minifyContent(); break;
           case 'escape': toolbarRef?.escapeContent(); break;
@@ -344,32 +230,16 @@
             }
             break;
           }
-          case 'quit_app': {
-            try {
-              const { invoke } = await import('@tauri-apps/api/core');
-              await invoke('quit_app');
-            } catch {
-              window.close();
-            }
-            break;
-          }
         }
       }
     };
-    
+
     window.addEventListener('keydown', handleKeydown);
-    
+
     return () => {
       workspaceResizeObserver?.disconnect();
-      if (unlistenFormatted) unlistenFormatted();
-      if (unlistenRaw) unlistenRaw();
-      if (unlistenFileDrop) unlistenFileDrop();
-      if (unlistenOpenFile) unlistenOpenFile();
       window.removeEventListener('keydown', handleKeydown);
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
       if (logJsonTimer) clearTimeout(logJsonTimer);
-      fileWatcherService.destroy();
-      fileWatcherService.unwatchAll();
     };
   });
   
@@ -410,45 +280,11 @@
     scheduleLogJsonDetection(currentTab.content, { eager: true });
   }
   
-  // Handle file watching for active tab
-  async function setupFileWatching(tab: import('$lib/stores/tabs').Tab | null) {
-    if (!tab || !tab.filePath) return;
-    
-    try {
-      await fileWatcherService.watchFile(tab.filePath, async (changedPath) => {
-        const currentTab = tabsState.tabs.find(t => t.id === tab.id);
-        if (!currentTab) return;
-
-        // File was modified externally
-        if (currentTab.isModified) {
-          // Show confirmation dialog
-          showToast(`File "${currentTab.fileName}" was modified externally`, 'info');
-        } else {
-          // Auto reload if not modified
-          try {
-            const newContent = await readFile(changedPath);
-            if (newContent !== currentTab.content) {
-              tabsStore.updateTabContent(currentTab.id, newContent, false);
-              await updateStats();
-              showToast(`File "${currentTab.fileName}" reloaded`, 'success');
-            }
-          } catch (e) {
-            showToast(`Failed to reload file "${currentTab.fileName}"`, 'error');
-            console.error('Failed to reload file:', e);
-          }
-        }
-      });
-    } catch (e) {
-      console.error('Failed to setup file watching:', e);
-    }
-  }
-  
   $effect(() => {
     const unsubscribe = tabsStore.subscribe(newTabsState => {
       const oldActiveTabId = prevActiveTabId;
       const newActiveTabId = newTabsState.activeTabId;
-      const currentTab = getActiveTabFromState(newTabsState);
-      const newActiveTabContent = currentTab?.content || '';
+      const newActiveTabContent = getActiveTabFromState(newTabsState)?.content || '';
       
       tabsState = newTabsState;
       
@@ -458,26 +294,17 @@
         prevActiveTabId = newActiveTabId;
         prevActiveTabContent = newActiveTabContent;
         syncActiveTab(newTabsState);
-        setupFileWatching(currentTab);
         return;
       }
-      
-      // Sync content when:
-      // 1. Switching tabs (activeTabId changed)
-      // 2. Current tab's content changed externally (e.g., file opened into empty tab)
+
       const tabSwitched = oldActiveTabId !== newActiveTabId;
-      const contentChangedExternally = prevActiveTabContent !== newActiveTabContent && 
+      const contentChangedExternally = prevActiveTabContent !== newActiveTabContent &&
                                        newActiveTabContent !== content;
-      
+
       if (tabSwitched || contentChangedExternally) {
         prevActiveTabId = newActiveTabId;
         prevActiveTabContent = newActiveTabContent;
         syncActiveTab(newTabsState);
-        
-        // Setup file watching for new active tab
-        if (tabSwitched) {
-          setupFileWatching(currentTab);
-        }
       }
     });
     return () => unsubscribe();
@@ -488,7 +315,6 @@
   let lineHeight = $derived(settings.lineHeight);
   let tabSize = $derived(settings.tabSize);
   let showTreeView = $derived(settings.showTreeView);
-  let showFolderView = $derived(settings.showFolderView);
   let hasLogJsonFragmentsPanel = $derived(isLogJsonPanelOpen && logJsonFragments.length > 0);
   let monacoTheme = $derived<EditorTheme>(isDarkMode ? settings.darkTheme : settings.lightTheme);
   $effect(() => {
@@ -536,17 +362,6 @@
       updateDiffStatsForSide('right');
     }, 200);
   });
-
-  async function toggleAlwaysOnTop() {
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const newValue = !isAlwaysOnTop;
-      await getCurrentWindow().setAlwaysOnTop(newValue);
-      isAlwaysOnTop = newValue;
-    } catch (error) {
-      console.error('Failed to toggle always on top:', error);
-    }
-  }
 
   function toggleTheme() {
     settingsStore.updateSetting('isDarkMode', !isDarkMode);
@@ -727,15 +542,6 @@
     }
   }
 
-  async function openDevTools() {
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('open_devtools');
-    } catch (error) {
-      console.error('Failed to open devtools:', error);
-    }
-  }
-
   function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
     toastMsg = msg;
     toastType = type;
@@ -880,32 +686,6 @@
     window.addEventListener('pointerup', handlePointerUp);
   }
 
-  function startFolderResize(event: PointerEvent) {
-    if (!showFolderView || !mainWorkspaceEl) return;
-
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = folderViewWidth;
-    const workspaceWidth = mainWorkspaceEl.clientWidth;
-    isResizingFolderView = true;
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      if (!isResizingFolderView) return;
-      const delta = moveEvent.clientX - startX;
-      folderViewWidth = clampFolderWidth(startWidth + delta, workspaceWidth);
-      requestAnimationFrame(() => monacoEditor?.getEditorInstance()?.layout());
-    };
-
-    const handlePointerUp = () => {
-      isResizingFolderView = false;
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }
-
   function updateDiffStats(changes: Array<{
     originalStartLineNumber: number;
     originalEndLineNumber: number;
@@ -991,16 +771,6 @@
     statsTimer = setTimeout(updateStats, 300);
     checkJsonError(newValue);
     scheduleLogJsonDetection(newValue);
-
-    if (settings.autoSave) {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        const currentTab = $activeTab;
-        if (currentTab && currentTab.isModified && currentTab.filePath) {
-          toolbarRef?.saveFile(true);
-        }
-      }, 1000);
-    }
   }
 
   function handleToolbarContentChange(newValue: string) {
@@ -1009,16 +779,6 @@
     if (!currentTab) return;
     tabsStore.updateTabContent(currentTab.id, newValue);
     scheduleLogJsonDetection(newValue);
-
-    if (settings.autoSave) {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        const currentTab = $activeTab;
-        if (currentTab && currentTab.isModified && currentTab.filePath) {
-          toolbarRef?.saveFile(true);
-        }
-      }, 1000);
-    }
   }
 
   // Paste auto-format: only format standard JSON. JSON5 content must not be
@@ -1256,7 +1016,6 @@
       content={content}
       activeTab={$activeTab}
       isDarkMode={isDarkMode}
-      isAlwaysOnTop={isAlwaysOnTop}
       editor={monacoEditor}
       tabSize={tabSize}
       onToggleDiff={toggleDiffMode}
@@ -1264,7 +1023,6 @@
       onToggleCodegen={toggleCodegenMode}
       onToggleSchema={toggleSchemaMode}
       onToggleTheme={toggleTheme}
-      onToggleAlwaysOnTop={toggleAlwaysOnTop}
       onOpenSettings={openSettings}
       onContentChange={handleToolbarContentChange}
       onStatsUpdate={updateStats}
@@ -1276,42 +1034,8 @@
   <div
     bind:this={mainWorkspaceEl}
     class="json-main-workspace"
-    class:resizing-tree-view={isResizingTreeView || isResizingFolderView}
+    class:resizing-tree-view={isResizingTreeView}
   >
-    {#if !isDiffMode && !isConvertMode && !isCodegenMode && !isSchemaMode && !hasLogJsonFragmentsPanel}
-      <!-- Folder Sidebar Area -->
-      {#if showFolderView}
-        <div class="json-folder-container" style={`width: ${folderViewWidth}px;`}>
-          <FolderSidebar />
-        </div>
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <div
-          class="json-folder-resizer"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize folder panel"
-          tabindex="0"
-          onpointerdown={startFolderResize}
-        ></div>
-      {/if}
-
-      <div class="json-view-toggler-zone left" class:is-closed={!showFolderView}>
-        <button 
-          class="json-view-toggle-btn"
-          onclick={() => settingsStore.updateSetting('showFolderView', !showFolderView)}
-          title={showFolderView ? $t('folderView.hide') : $t('folderView.show')}
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-            {#if showFolderView}
-              <polygon points="16,4 8,12 16,20" /> <!-- Left arrow -->
-            {:else}
-              <polygon points="8,4 16,12 8,20" /> <!-- Right arrow -->
-            {/if}
-          </svg>
-        </button>
-      </div>
-    {/if}
-
     <!-- Center section: Tab Bar + Editor -->
     <div class="json-editor-left">
       <!-- Tab Bar - show different tab bars based on mode -->

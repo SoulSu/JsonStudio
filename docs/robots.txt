@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://jsonstudio.js.org/sitemap.xml

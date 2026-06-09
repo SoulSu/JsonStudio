@@ -1,123 +1,53 @@
-import { invoke } from '@tauri-apps/api/core';
-import { monacoThemes, type EditorTheme } from '$lib/config/monacoThemes';
+// JSON image export — pure browser implementation.
+// We render the live Monaco editor DOM via html-to-image; the previous Rust path
+// (which rasterized JSON ourselves with the image crate) is gone.
+import { toPng, toJpeg } from 'html-to-image';
+
+export type ExportImageFormat = 'png' | 'jpeg';
 
 interface ExportOptions {
-  content: string;
-  theme: EditorTheme;
-  fontSize?: number;
-  lineHeight?: number;
+  node: HTMLElement;
+  format?: ExportImageFormat;
+  pixelRatio?: number;
+  backgroundColor?: string;
 }
 
-interface ThemeColors {
-  background: string;
-  foreground: string;
-  keyColor: string;
-  stringColor: string;
-  numberColor: string;
-  booleanColor: string;
-  nullColor: string;
-  delimiterColor: string;
+export interface ExportResult {
+  blob: Blob;
+  filename: string; // suggested filename without extension
+  format: ExportImageFormat;
 }
 
-function getThemeColors(theme: EditorTheme): ThemeColors {
-  const config = monacoThemes[theme];
-  const base = config?.base ?? theme;
-  const isDark = base === 'vs-dark' || base === 'hc-black';
-
-  const normalize = (value?: string): string | undefined => {
-    if (!value) return undefined;
-    if (value.startsWith('#')) return value;
-    if (/^[0-9a-fA-F]{6,8}$/.test(value)) return `#${value}`;
-    return value;
-  };
-
-  const getTokenColor = (tokens: string[], fallback: string): string => {
-    if (!config?.rules?.length) return fallback;
-    for (const token of tokens) {
-      const rule = config.rules.find((item) => item.token === token && item.foreground);
-      const color = normalize(rule?.foreground);
-      if (color) return color;
-    }
-    return fallback;
-  };
-
-  const defaultBackground = isDark ? '#1E1E1E' : '#FFFFFF';
-  const defaultForeground = isDark ? '#D4D4D4' : '#1E1E1E';
-
-  const background = normalize(config?.colors?.['editor.background']) ?? defaultBackground;
-  const foreground = normalize(config?.colors?.['editor.foreground']) ?? defaultForeground;
-  const delimiterColor = getTokenColor(['delimiter'], foreground);
-
-  return {
-    background,
-    foreground,
-    keyColor: getTokenColor(['string.key.json', 'string'], foreground),
-    stringColor: getTokenColor(['string.value.json', 'string'], foreground),
-    numberColor: getTokenColor(['number'], foreground),
-    booleanColor: getTokenColor(['keyword'], foreground),
-    nullColor: getTokenColor(['keyword'], foreground),
-    delimiterColor,
-  };
+export async function exportNodeAsImage(
+  options: ExportOptions,
+  suggestedBase = 'json',
+): Promise<ExportResult> {
+  const { node, format = 'png', pixelRatio = 2, backgroundColor } = options;
+  const dataUrl = format === 'png'
+    ? await toPng(node, { pixelRatio, backgroundColor, cacheBust: true })
+    : await toJpeg(node, { pixelRatio, backgroundColor, quality: 0.95, cacheBust: true });
+  const blob = await dataUrlToBlob(dataUrl);
+  return { blob, filename: suggestedBase, format };
 }
 
-function getBracketHighlightColors(): string[] {
-  const container = document.createElement('div');
-  container.className = 'monaco-editor';
-  container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;';
-  const spans: HTMLSpanElement[] = [];
-  for (let i = 0; i < 6; i++) {
-    const span = document.createElement('span');
-    span.className = `bracket-highlighting-${i}`;
-    span.textContent = '{}';
-    spans.push(span);
-    container.appendChild(span);
-  }
-  document.body.appendChild(container);
-
-  const colors: string[] = [];
-  for (const span of spans) {
-    const color = getComputedStyle(span).color;
-    if (color && color !== 'inherit' && color !== 'transparent') {
-      colors.push(color);
-    }
-  }
-
-  document.body.removeChild(container);
-  return colors;
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Defer revocation so Safari has time to start the download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function exportJsonAsImage(options: ExportOptions): Promise<string> {
-  const { content, theme, fontSize = 14, lineHeight = 22 } = options;
-
-  const colors = getThemeColors(theme);
-  const bracketColors = getBracketHighlightColors();
-  const isDark = theme === 'vs-dark' || theme === 'hc-black' ||
-    (monacoThemes[theme]?.base === 'vs-dark');
-
-  const pngBase64 = await invoke<string>('export_json_image', {
-    request: {
-      content,
-      colors,
-      bracketColors,
-      isDark,
-      fontSize,
-      lineHeight,
-    },
-  });
-
-  return pngBase64;
+export function getExportImageFileName(sourceName?: string | null, ext = 'png'): string {
+  const base = (sourceName || 'json').replace(/\.[^./\\]+$/, '');
+  return `${base}.${ext}`;
 }
 
-export function pngBase64ToBytes(pngBase64: string): Uint8Array {
-  const base64 = pngBase64.includes(',')
-    ? pngBase64.slice(pngBase64.indexOf(',') + 1)
-    : pngBase64;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return bytes;
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const response = await fetch(dataUrl);
+  return response.blob();
 }

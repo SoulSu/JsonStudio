@@ -1,53 +1,39 @@
-.PHONY: help dev build check test fmt lint clean install
+.PHONY: help dev build preview check test fmt clean install
 
 # Default target: show help
 help:
-	@echo "Tauri desktop app development commands"
+	@echo "Json Studio (Web) development commands"
 	@echo ""
-	@echo "  make dev          - Development mode (build and run frontend + backend)"
-	@echo "  make build        - Build application (frontend + backend)"
-	@echo "  make check        - Type check (frontend + backend)"
+	@echo "  make dev          - Start the Vite dev server"
+	@echo "  make build        - Build the static site into build/"
+	@echo "  make preview      - Preview the built site locally"
+	@echo "  make check        - Type check"
 	@echo "  make test         - Run tests"
-	@echo "  make fmt          - Format code (frontend + backend)"
-	@echo "  make lint         - Lint code (frontend + backend)"
+	@echo "  make fmt          - Format frontend code"
 	@echo "  make clean        - Clean build artifacts"
 	@echo "  make install      - Install dependencies"
 
-# Development mode (frontend + backend)
 dev:
-	pnpm tauri dev
+	pnpm dev
 
-# Build application (frontend + backend)
 build:
-	pnpm tauri build
+	pnpm build
 
-# Type check (frontend + backend)
+preview:
+	pnpm preview
+
 check:
 	pnpm check
-	cd src-tauri && cargo check
 
-# Run tests
 test:
-	cd src-tauri && cargo test
+	pnpm test
 
-# Format code (frontend + backend)
 fmt:
-	cd src-tauri && cargo fmt
 	pnpm exec prettier --write "src/**/*.{ts,js,svelte}" 2>/dev/null || true
 
-# Lint code (frontend + backend)
-lint:
-	cd src-tauri && cargo clippy
-	pnpm check
-
-# Clean build artifacts
 clean:
 	rm -rf build
-	rm -rf src-tauri/target
 	rm -rf node_modules/.vite
 
-# Install dependencies
 install:
 	pnpm install
-	cd src-tauri && cargo fetch
-

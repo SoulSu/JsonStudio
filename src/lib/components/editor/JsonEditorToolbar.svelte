@@ -1,16 +1,15 @@
 <script lang="ts">
   import { escapeString, unescapeString } from '$lib/services/json';
-  import { openFileDialog, saveFile as writeFile, saveFileDialog, saveBinaryFileDialog, getFileName } from '$lib/services/file';
-  import { exportJsonAsImage, pngBase64ToBytes } from '$lib/services/exportImage';
+  import {
+    exportNodeAsImage,
+    downloadBlob,
+    getExportImageFileName as buildImageFileName,
+  } from '$lib/services/exportImage';
   import { tabsStore, type Tab } from '$lib/stores/tabs';
   import { shortcutsStore, formatShortcutKey, type ShortcutsSettings } from '$lib/stores/shortcuts';
   import { settingsStore } from '$lib/stores/settings';
-  import { getSaveFileName } from '$lib/stores/untitledTabs.js';
-  import { normalizeOpenedJson } from '$lib/services/openJsonNormalize.js';
   import { t } from '$lib/i18n';
-  import type { EditorTheme } from '$lib/config/monacoThemes';
   import type MonacoEditor from './MonacoEditor.svelte';
-  import { folderStore } from '$lib/stores/folder';
 
   let shortcuts = $state<ShortcutsSettings | null>(null);
 
@@ -26,12 +25,6 @@
 
   const LARGE_FILE_THRESHOLD = 1024 * 1024;
 
-  function getExportImageFileName(fileName: string | null | undefined) {
-    const name = fileName?.trim();
-    if (!name) return 'json-export.png';
-    return `${name.replace(/\.[^.]+$/, '') || 'json-export'}.png`;
-  }
-
   const {
     isDiffMode,
     isConvertMode,
@@ -40,7 +33,6 @@
     content,
     activeTab,
     isDarkMode,
-    isAlwaysOnTop,
     editor,
     tabSize,
     onToggleDiff,
@@ -48,7 +40,6 @@
     onToggleCodegen,
     onToggleSchema,
     onToggleTheme,
-    onToggleAlwaysOnTop,
     onOpenSettings,
     onContentChange,
     onStatsUpdate,
@@ -61,7 +52,6 @@
     content: string;
     activeTab: Tab | null;
     isDarkMode: boolean;
-    isAlwaysOnTop: boolean;
     editor: MonacoEditor | null;
     tabSize: number;
     onToggleDiff: () => void;
@@ -69,7 +59,6 @@
     onToggleCodegen: () => void;
     onToggleSchema: () => void;
     onToggleTheme: () => void;
-    onToggleAlwaysOnTop: () => void;
     onOpenSettings: () => void;
     onContentChange: (value: string) => void;
     onStatsUpdate: () => Promise<void> | void;
@@ -79,39 +68,10 @@
   let isProcessing = $state(false);
   let isExporting = $state(false);
   let hasContent = $derived(Boolean(content.trim()));
-  let showOpenMenu = $state(false);
-  let openMenuEl = $state<HTMLDivElement | null>(null);
-  let dropdownTop = $state(0);
-  let dropdownLeft = $state(0);
-
-  function handleWindowClick(e: MouseEvent) {
-    if (showOpenMenu && openMenuEl && !openMenuEl.contains(e.target as Node)) {
-      showOpenMenu = false;
-    }
-  }
-
-  function toggleOpenMenu() {
-    if (!showOpenMenu && openMenuEl) {
-      const rect = openMenuEl.getBoundingClientRect();
-      dropdownTop = rect.bottom + 5;
-      dropdownLeft = rect.left;
-    }
-    showOpenMenu = !showOpenMenu;
-  }
-
-  async function handleOpenFolder() {
-    showOpenMenu = false;
-    await folderStore.openFolder();
-  }
-
-  function handleOpenFileFromMenu() {
-    showOpenMenu = false;
-    handleOpenFile();
-  }
 
   let appSettings = $state<import('$lib/stores/settings').AppSettings>({
     isDarkMode: false, darkTheme: 'one-dark', lightTheme: 'vs',
-    language: 'zh', fontSize: 13, lineHeight: 20, tabSize: 2, showTreeView: true, showFolderView: true, autoSave: false,
+    language: 'zh', fontSize: 13, lineHeight: 20, tabSize: 2, showTreeView: true,
   });
 
   $effect(() => {
@@ -127,21 +87,17 @@
     }
     isExporting = true;
     try {
-      const currentTheme: EditorTheme = appSettings.isDarkMode
-        ? appSettings.darkTheme
-        : appSettings.lightTheme;
-      const pngBase64 = await exportJsonAsImage({
-        content,
-        theme: currentTheme,
-        fontSize: appSettings.fontSize,
-        lineHeight: appSettings.lineHeight,
-      });
-      const pngBytes = pngBase64ToBytes(pngBase64);
-      const fileName = getExportImageFileName(activeTab?.fileName);
-      const savedPath = await saveBinaryFileDialog(pngBytes, fileName, 'png');
-      if (savedPath) {
-        onToast($t('toolbar.exportImageSaved'));
+      const monacoInstance = editor?.getEditorInstance();
+      const node = monacoInstance?.getDomNode() as HTMLElement | undefined;
+      if (!node) {
+        throw new Error('Editor not ready');
       }
+      const { blob } = await exportNodeAsImage(
+        { node, format: 'png', pixelRatio: 2 },
+        (activeTab?.fileName ?? 'json').replace(/\.[^./\\]+$/, ''),
+      );
+      downloadBlob(blob, buildImageFileName(activeTab?.fileName, 'png'));
+      onToast($t('toolbar.exportImageSaved'));
     } catch (e: any) {
       console.error('Export image failed:', e);
       onToast($t('toolbar.exportImageFailed'), 'error');
@@ -157,18 +113,6 @@
 
   export async function formatContent() {
     await handleFormat();
-  }
-
-  export async function openFile() {
-    await handleOpenFile();
-  }
-
-  export async function saveFile(isAutoSave = false) {
-    await handleSaveFile(isAutoSave);
-  }
-
-  export async function saveAsFile() {
-    await handleSaveAsFile();
   }
 
   export function newFile() {
@@ -351,94 +295,6 @@
     editor?.unfoldAll();
   }
 
-  async function handleOpenFile() {
-    try {
-      const result = await openFileDialog();
-      if (result) {
-        const [path, fileContent] = result;
-        const name = await getFileName(path);
-        const [{ formatJson, getJsonStats }, { formatJson5 }] = await Promise.all([
-          import('$lib/services/json'),
-          import('$lib/services/json5Format.js'),
-        ]);
-        const normalizedContent = await normalizeOpenedJson(fileContent, {
-          indent: tabSize,
-          formatJson,
-          getJsonStats,
-          formatJson5,
-        });
-
-        // Smart open: reuse empty tab or create new one
-        tabsStore.openFile(normalizedContent, path, name);
-
-        await onStatsUpdate();
-        onToast(`Opened: ${name || 'file'}`);
-      }
-    } catch (e) {
-      onToast('Failed to open file', 'error');
-      console.error('Open file error:', e);
-    }
-  }
-
-  async function handleSaveFile(isAutoSave = false) {
-    const currentContent = content;
-    if (!currentContent.trim() && !isAutoSave) {
-      onToast('Nothing to save', 'info');
-      return;
-    }
-    if (!currentContent.trim() && isAutoSave) return;
-
-    if (!activeTab) {
-      if (!isAutoSave) onToast('No active tab', 'info');
-      return;
-    }
-
-    try {
-      if (activeTab.filePath) {
-        // Save to existing file.
-        await writeFile(activeTab.filePath, currentContent);
-        if (activeTab.content === currentContent) {
-          tabsStore.updateTabModified(activeTab.id, false);
-        }
-        if (!isAutoSave) {
-          onToast(`Saved: ${activeTab.fileName || 'file'}`);
-        }
-      } else {
-        // No current file, use save as.
-        if (!isAutoSave) {
-          await handleSaveAsFile();
-        }
-      }
-    } catch (e) {
-      if (!isAutoSave) onToast('Failed to save file', 'error');
-      console.error('Save file error:', e);
-    }
-  }
-
-  async function handleSaveAsFile() {
-    if (!content.trim()) {
-      onToast('Nothing to save', 'info');
-      return;
-    }
-
-    if (!activeTab) {
-      onToast('No active tab', 'info');
-      return;
-    }
-
-    try {
-      const path = await saveFileDialog(content, getSaveFileName(activeTab.fileName));
-      if (path) {
-        const name = await getFileName(path);
-        tabsStore.updateTabFile(activeTab.id, path, name);
-        onToast(`Saved: ${name || 'file'}`);
-      }
-    } catch (e) {
-      onToast('Failed to save file', 'error');
-      console.error('Save as file error:', e);
-    }
-  }
-
   function handleNewFile() {
     tabsStore.addTab();
     onToast('New tab created');
@@ -463,40 +319,6 @@
         <svg class="toolbar-icon" style="color: #0ea5e9;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
         {$t('toolbar.new')}
       </button>
-      <div class="toolbar-open-wrap" bind:this={openMenuEl}>
-        <button
-          class="toolbar-btn toolbar-open-btn"
-          onclick={() => toggleOpenMenu()}
-          title={$t('toolbar.open')}
-        >
-          <svg class="toolbar-icon" style="color: #eab308;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-          {$t('toolbar.open')}
-          <svg class="open-caret" class:rotated={showOpenMenu} viewBox="0 0 12 12" fill="currentColor">
-            <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        {#if showOpenMenu}
-          <div
-            class="toolbar-open-dropdown"
-            style="top: {dropdownTop}px; left: {dropdownLeft}px;"
-          >
-            <button class="open-menu-item" onclick={handleOpenFileFromMenu}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M10 1.5H4a1 1 0 00-1 1v11a1 1 0 001 1h8a1 1 0 001-1V5.5L10 1.5z" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 1.5V5.5h4" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Open File</span>
-              <span class="open-menu-shortcut">{shortcutLabel('openFile')}</span>
-            </button>
-            <button class="open-menu-item" onclick={handleOpenFolder}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M1 4.5a1 1 0 011-1h3.586a1 1 0 01.707.293L7.707 5.5H13a1 1 0 011 1v6a1 1 0 01-1 1H2a1 1 0 01-1-1v-8z" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Open Folder</span>
-            </button>
-          </div>
-        {/if}
-      </div>
       <button class="toolbar-btn" onclick={handleExportImage} disabled={isExporting} title={$t('toolbar.exportImage')}>
         <svg class="toolbar-icon" style="color: #f43f5e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         {$t('toolbar.exportImage')}
@@ -596,19 +418,8 @@
         <circle cx="12" cy="12" r="3"/>
       </svg>
     </button>
-    <button
-      class="toolbar-icon-btn {isAlwaysOnTop ? 'is-active' : ''}"
-      onclick={onToggleAlwaysOnTop}
-      title={isAlwaysOnTop ? $t('toolbar.unpinFromTop') : $t('toolbar.pinToTop')}
-    >
-      <svg class="toolbar-icon" style="color: #ec4899;" viewBox="0 0 24 24" fill={isAlwaysOnTop ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z"/>
-      </svg>
-    </button>
   </div>
 </div>
-
-<svelte:window onclick={handleWindowClick} />
 
 <style>
   .je-toolbar {
@@ -655,74 +466,6 @@
     height: 16px;
     background: var(--border);
     margin: 0 4px;
-  }
-
-  /* Open dropdown */
-  .toolbar-open-wrap {
-    position: relative;
-  }
-
-  .toolbar-open-btn {
-    gap: 4px;
-  }
-
-  .open-caret {
-    width: 10px;
-    height: 10px;
-    flex-shrink: 0;
-    transition: transform 0.15s ease;
-    opacity: 0.6;
-  }
-
-  .open-caret.rotated {
-    transform: rotate(180deg);
-  }
-
-  .toolbar-open-dropdown {
-    position: fixed;
-    min-width: 168px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    z-index: 9999;
-    padding: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .open-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 8px;
-    border: none;
-    border-radius: 5px;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.12s, color 0.12s;
-  }
-
-  .open-menu-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .open-menu-item svg {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    color: #eab308;
-  }
-
-  .open-menu-item:last-child svg {
-    color: #f5c542;
   }
 
   .open-menu-shortcut {

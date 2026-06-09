@@ -1,6 +1,5 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
-  import { openUrl } from '@tauri-apps/plugin-opener';
   import { t } from '$lib/i18n';
   import { createGridValueEdit, isGridEditCommitKey } from '$lib/services/gridEdit.js';
   import { parseJsonDocument } from '$lib/services/jsonDocumentParse.js';
@@ -788,16 +787,11 @@
                 target="_blank" 
                 rel="noopener noreferrer" 
                 class="json-tree-help-link"
-                onclick={async (e) => {
+                onclick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   const url = getQueryDocsUrl(queryMode);
-                  try {
-                    await openUrl(url);
-                  } catch (err) {
-                    console.error('Failed to open link:', err);
-                    window.open(url, '_blank');
-                  }
+                  window.open(url, '_blank', 'noopener,noreferrer');
                 }}
               >
                 {$t('treeView.docs')}

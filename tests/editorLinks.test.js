@@ -36,17 +36,16 @@ test('ignores non-url JSON strings', () => {
   assert.equal(getJsonStringUrlAtColumn(line, line.indexOf('docs') + 1), null);
 });
 
-test('monaco editor opens clicked JSON string urls with the Tauri opener only on command or control click', () => {
+test('monaco editor opens clicked JSON string urls via window.open on command or control click', () => {
   const source = readFileSync(
     new URL('../src/lib/components/editor/MonacoEditor.svelte', import.meta.url),
     'utf8',
   );
 
-  assert.match(source, /import \{ openUrl \} from '@tauri-apps\/plugin-opener';/);
+  assert.doesNotMatch(source, /@tauri-apps/);
   assert.match(source, /getJsonStringUrlAtColumn/);
   assert.match(source, /editor\.onMouseDown/);
   assert.match(source, /browserEvent\.metaKey/);
   assert.match(source, /browserEvent\.ctrlKey/);
-  assert.match(source, /await openUrl\(url\)/);
-  assert.match(source, /window\.open\(url, '_blank'\)/);
+  assert.match(source, /window\.open\(url, '_blank', 'noopener,noreferrer'\)/);
 });
